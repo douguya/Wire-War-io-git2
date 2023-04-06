@@ -53,14 +53,17 @@
     <UnityVersion>2020.3.26f1</UnityVersion>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="Assets\Script\Wire_Shot_Shell.cs" />
     <Compile Include="Assets\Effect\WFX_MF FPS RIFLE2\WFX_LightFlicker.cs" />
     <Compile Include="Assets\character\Script\CharactreContorol.cs" />
+    <Compile Include="Assets\Script\UIManagerSC.cs" />
     <Compile Include="Assets\character\Script\Body.cs" />
+    <Compile Include="Assets\Script\Gun_Manager.cs" />
     <Compile Include="Assets\character\Script\FutPoint.cs" />
+    <Compile Include="Assets\Script\Object_Component_Setter.cs" />
     <Compile Include="Assets\Effect\WFX_Explosion Small\CFX_AutoDestructShuriken.cs" />
     <Compile Include="Assets\Script\Bullet.cs" />
-    <Compile Include="Assets\Script\Wire_Shot_Shell.cs" />
-    <Compile Include="Assets\Script\Gun_Manager.cs" />
+    <Compile Include="Assets\Script\GameManagerSC.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Assets\Aseets\Kevin Iglesias\3DCharacterDummy\Readme.txt" />

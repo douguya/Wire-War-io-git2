@@ -5,14 +5,16 @@ using UnityEngine;
 public class Gun_Manager : MonoBehaviour
 {
 
-    public GameObject Target;//照準UI　　射程外
-    private GameObject Target2;//照準UI2　射程内
-    private GameObject Target3;//照準UI3　チャージ完了
-    public Camera CharacterCamera;
+
+    public Camera CharacterCamera;//カメラのオブジェクト
+
+    [System.NonSerialized]
+    public UIManagerSC uimanager;//UIのマネージャ
 
 
 
-
+    Ray Arm_Ray;//本とはGunRayだが、オブジェクトとわかりやすく分けるためにArmにする
+    RaycastHit hit;//射程内判定ようのRaycastHit
 
 
 
@@ -21,15 +23,42 @@ public class Gun_Manager : MonoBehaviour
     public GameObject BulletPoint;//銃弾の生成点
     public GameObject Bullet;//弾丸のプレハブ
 
-    public float ChageTimer = 0;
-    public float Required_ChageTime;
+
+
+
+
+    [Header("エネルギー　射撃に関する部分を除く--------")]
+
+
+
+    public float Energy;//銃を撃つためのエネルギー　とリマ１００
+
+
+    public int EnergyMax;//エネルギー最大値
+    public int EnergyMini;//エネルギー最小値
+
+
+    public float CooldownTime;//射撃からエネルギー充填開始にかかる時間
+    public float RechargeTime;//エネルギーのフル充填にかかる時間
+
+
+
+
+
+    [Header("射撃に関する値--------")]
+    public int ShotCost;   //通常射撃にかかるコスト                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         
+    public int ChargeCost; //強化射撃にかかるコスト    
+
+
+
+    public float ChageTimer = 0;//銃のチャージ状態のタイマー
+    public float Required_ChageTime;//銃のチャージにかかる時間
 
 
     public int[] Vewing_distance;//銃のRayの距離　発射時の有効射程距離
 
+    public float ShotTimer=0;//射撃後の時間経過のタイマー
 
-    Ray Arm_Ray;//本とはGunRayだが、オブジェクトとわかりやすく分けるためにArmにする
-    RaycastHit hit;//射程内判定ようのRaycastHit
 
 
     public enum BulletCharge
@@ -38,7 +67,7 @@ public class Gun_Manager : MonoBehaviour
         FullCharge = 1,
 
     }
-   public BulletCharge bulletCharge = 0;
+    public BulletCharge bulletCharge = 0;
 
 
 
@@ -48,41 +77,98 @@ public class Gun_Manager : MonoBehaviour
 
 
 
+    [Header("--------------以下ワイヤーに関するもの---------------")]
 
 
-    //以下ワイヤーに関するもの
-    private bool Within_Range = false;//射程内
+
     public bool Wire_Injectioning = false;//射出中
+    private bool Within_Range = false;//射程内
     public bool Wire_Pull = false;//ワイヤー牽引中
     public bool Wire_farst = false;//着弾後一度だけ作動させるためのもの
     public bool Wire_Distance_far = false;//ワイヤー着弾地点との距離が広がっている
 
+    [System.NonSerialized]
     public LineRenderer Wire_Line;//ワイヤーを表現するラインレンダラー　
     public GameObject Wire_shot_shell;//ワイヤーショットのプレハブ
     private GameObject Generated_Wire_shot;//ワイヤーの先端のオブジェクト プレハブを召喚したもの
     public float[] Wire_to_PlayerDistance = new float[3];//ワイヤーとの距離の格納
+
+    [System.NonSerialized]
+    public Rigidbody Rb;//　ワイヤー牽引時に使う物理演算オブジェクト
+
+    [Header("以下ワイヤーのステータス")]
     public int Wire_force;//牽引の力　
     private Vector3 Add_Wire_force;//Y方向の牽引力調整用　実際の牽引時に使用
 
     private float Wire_TimeLimit = 5;// ワイヤー自切時間　タイムリミット
     public float Wire_Timer;// ワイヤータイマー　自切判断に使う
-                        
-    Rigidbody Rb;//　ワイヤー牽引時に使う物理演算オブジェクト
 
 
     void Start()
     {
-        Rb = GetComponent<Rigidbody>();//リジットボディの取得
-
-        Target2 = Target.transform.GetChild(0).gameObject;
-        Target3 = Target.transform.GetChild(1).gameObject;
+      
+        Energy = 0;//エネルギー完全充填
     }
 
     // Update is called once per frame
     void Update()
     {
         TargetSift();//銃から出たRayの衝突位置に照準を合せる
+
+
+        Energy_ReCharge();//エネルギーのチャージ
     }
+
+
+    public void Energy_ReCharge()
+    {
+
+        ShotTimer += Time.deltaTime;//ショット後のタイマーの計測
+        if (ShotTimer> CooldownTime&&ChageTimer==0)//ショット後の時間が閾値を超えたら  また　強化ショット非チャージ中なら
+        {
+            Energy += (Time.deltaTime / RechargeTime) * EnergyMax;//経過時間をフルチャージにかかる時間で割ってエネルギー最大値にかけることでエネルギーをチャージ
+        }
+      
+
+
+
+        EnergyAdjust();////エネルギーを上下限内にそろえる
+
+        uimanager.Energy_UI_Conversion(Energy, EnergyMini, EnergyMax);//UIにエネルギーを反映
+
+
+        //エネルギーの予測消費ラインをUIに反映
+        if (bulletCharge == BulletCharge.NoCharge)  //チャージ状態でない
+        {
+            uimanager.Energy__Forecast_Lines_UI_Conversion(Energy-ShotCost, EnergyMini, EnergyMax);//エネルギ-の予想消費ラインをUIに反映
+
+        }
+        if (bulletCharge == BulletCharge.FullCharge)//　チャージ状態　ほんとはElseでいいんだけど 可読性のために分ける
+        {
+
+            uimanager.Energy__Forecast_Lines_UI_Conversion(Energy-ChargeCost, EnergyMini, EnergyMax);//エネルギ-の予想消費ラインをUIに反映
+        }
+
+
+    }
+
+
+    public void EnergyAdjust()//エネルギーを上下限内にそろえる
+    {
+
+        if (Energy < EnergyMini)//範囲を超えていたら強制的に合わせる
+        {
+            Energy = EnergyMini;
+        }
+        else if (Energy > EnergyMax)
+        {
+            Energy = EnergyMax;
+        }
+
+
+
+    }
+
     void LateUpdate()
     {
         
@@ -102,14 +188,15 @@ public class Gun_Manager : MonoBehaviour
         if (Physics.Raycast(Arm_Ray, out hit, Vewing_distance[(int)bulletCharge]))//Rayがオブジェクトに当たっている場合　要するに射程内
         {
             Within_Range = true;//射程内
-            Target.GetComponent<RectTransform>().position = CharacterCamera.WorldToScreenPoint(hit.point);//Rayとオブジェクトの交点に照準UIを合わせる
-            Target2.SetActive(true);//照準を射程内のものに変化
+
+            uimanager.TargetSift_Position(CharacterCamera.WorldToScreenPoint(hit.point),true);//Rayとオブジェクトの交点に照準UIを合わせる
+
+          
         }
         else //要するに射程外
         {
             Within_Range = false;//射程外
-            Target.GetComponent<RectTransform>().position = CharacterCamera.WorldToScreenPoint(Arm_Ray.GetPoint(Vewing_distance[(int)bulletCharge]));//Rayの(100)地点にオブジェクトの交点に照準UIを合わせる
-            Target2.SetActive(false);//照準を射程外のものに変化
+            uimanager.TargetSift_Position(CharacterCamera.WorldToScreenPoint(Arm_Ray.GetPoint(Vewing_distance[(int)bulletCharge])), false);//Rayの(bulletCharge)地点にオブジェクトの交点に照準UIを合わせる
         }
 
 
@@ -122,32 +209,60 @@ public class Gun_Manager : MonoBehaviour
 
     public void BulletShot()
     {
-       
-          
-          
-        Bullet.GetComponent<Bullet>().bulletMode = (Bullet.BulletMode)bulletCharge;//弾のモードをチャージ状態と同期する       
+        if (bulletCharge == BulletCharge.NoCharge)
+        {
+            if (Energy >= ShotCost)//エネルギーが必要量を満たしていたら
+            {
+                ShotTimer = 0;
+                Energy -= ShotCost;
 
-        Instantiate(Bullet, BulletPoint.transform.position, Gun.transform.rotation);//弾丸のインスタンスを発射ポイントから発射
+                Bullet.GetComponent<Bullet>().bulletMode = (Bullet.BulletMode)bulletCharge;//弾のモードをチャージ状態と同期する       
 
-        ChargeReset();//チャージリセット　中途半端なチャージで撃った場合のリセットも含む
+                Instantiate(Bullet, BulletPoint.transform.position, Gun.transform.rotation);//弾丸のインスタンスを発射ポイントから発射
+                ChargeReset();//チャージリセット　中途半端なチャージで撃った場合のリセットも含む
+            }
+        }
 
+        if (bulletCharge == BulletCharge.FullCharge)//ほんとはElseでいいんだけど 可読性のために分ける
+        {
+            if (Energy >= ChargeCost)//エネルギーが必要量を満たしていたら
+            {
+                ShotTimer = 0;
+                Energy -= ChargeCost;
+
+                Bullet.GetComponent<Bullet>().bulletMode = (Bullet.BulletMode)bulletCharge;//弾のモードをチャージ状態と同期する       
+
+                Instantiate(Bullet, BulletPoint.transform.position, Gun.transform.rotation);//弾丸のインスタンスを発射ポイントから発射
+                ChargeReset();//チャージリセット　中途半端なチャージで撃った場合のリセットも含む
+            }
+        }
     }
+
+
+
+
 
     public void Charge()
     {
-        ChageTimer += Time.deltaTime;//チャージ時間を計測
-        if (Required_ChageTime <= ChageTimer)//チャージ完了
+        if (Energy>=ChargeCost)
         {
-            bulletCharge = BulletCharge.FullCharge;//チャージ状態に移行
-            Target3.SetActive(true);//照準をチャージ済みのものに変化
+            ChageTimer += Time.deltaTime;//チャージ時間を計測
+            if (Required_ChageTime <= ChageTimer)//チャージ完了
+            {
+                bulletCharge = BulletCharge.FullCharge;//チャージ状態に移行
+                uimanager.TargetSift_Charge(true);//照準をチャージ済みのものに変化
+            }
+           
         }
+       
     }
     public void ChargeReset()
     {
+        
         ChageTimer = 0;//チャージ時間リセット
        
         bulletCharge = BulletCharge.NoCharge;//非チャージ状態に移行
-        Target3.SetActive(false);//照準をチャージ済みのものに変化
+        uimanager.TargetSift_Charge(false);//照準をチャージ済みのものに変化
     }
 
     public void Wire_Shot()

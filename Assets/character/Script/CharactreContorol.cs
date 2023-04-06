@@ -7,15 +7,7 @@ using UnityEngine.UI;
 public class CharactreContorol : MonoBehaviour
 {
     //以下デバッグ用変数
-    public Text T1;
-    public Text T2;
-    public Text T3;
-    public Text T4;
-    public Text T5;
-    public Text T6;
-    public Text T7;
-    public Text T8;
-    public Text T9;
+    
 
 
     //デバッグ用変数ここまで
@@ -23,7 +15,10 @@ public class CharactreContorol : MonoBehaviour
     public Transform waist;//腰のオブジェクト
     public Transform Legs; //足の総体オブジェクト
 
- 
+
+    public float HP;
+    public int HPMax;
+    public int HPMini;
 
 
     //以下歩行用bool値
@@ -34,13 +29,14 @@ public class CharactreContorol : MonoBehaviour
     //歩行用bool値ここまで
 
 
-  
+
     public int walk;//歩行速度
     public int MaxSpeed;//歩行速度
 
     public Vector3 JumpForce;//ジャンプ力
     public bool CanJump = true;//ジャンプ許可
-    Rigidbody Rb;//　歩行/跳躍　時に使用する物理演算コンポーネント
+    [System.NonSerialized]
+    public Rigidbody Rb;//　歩行/跳躍　時に使用する物理演算コンポーネント
 
 
 
@@ -50,23 +46,24 @@ public class CharactreContorol : MonoBehaviour
     public GameObject FutPoint;//接地判定用のオブジェクト
     public GameObject CameraPoint_X;//カメラの軸
     public GameObject Camera;//カメラ
-   
+
     private Vector3[] Mouse = new Vector3[4];  //マウスの位置(変化前と現在)
     public Animator anim;  //Animatorをanimという変数で定義する
 
+    [System.NonSerialized]
+    public Gun_Manager GunScript;
 
-   public Gun_Manager GunScript;
+
+    [System.NonSerialized]
+    public UIManagerSC uimanager;//UIのマネージャ
 
 
     // Start is called before the first frame update
     void Start()
     {
-        Rb = GetComponent<Rigidbody>();//リジットボディの取得
+       
         Mouse[0] = Input.mousePosition;//mouseの座標の取得
-        Rb = this.GetComponent<Rigidbody>();
-       
-       
-
+      
 
     }
 
@@ -74,7 +71,7 @@ public class CharactreContorol : MonoBehaviour
     void Update()
     {
         Move_();//WASD.spaceキーの入力とそれによる移動
-       
+
     }
 
     void LateUpdate()
@@ -82,10 +79,11 @@ public class CharactreContorol : MonoBehaviour
 
         Turn_around();//マウスの動きによる体の向きの変化
         Shot();
+        uimanager.HP_UI_Conversion(HP, HPMini, HPMax);
     }
 
-   
-   
+
+
 
 
     public void Move_()
@@ -139,7 +137,7 @@ public class CharactreContorol : MonoBehaviour
         {
             Forward = false;
 
-            
+
 
         }
 
@@ -161,7 +159,7 @@ public class CharactreContorol : MonoBehaviour
         {
             Left = false;
 
-           
+
         }
 
 
@@ -253,7 +251,7 @@ public class CharactreContorol : MonoBehaviour
 
 
 
-        Cursor.lockState = CursorLockMode.Locked;
+        // Cursor.lockState = CursorLockMode.Locked;
 
 
 
@@ -271,11 +269,11 @@ public class CharactreContorol : MonoBehaviour
         {
             transform.Rotate(new Vector3(0, Came_Y, 0));//キャラクターの体ごと向きを変える
 
-         }
+        }
 
         if (Input.GetAxis("Mouse Y") != 0)
         {
-         
+
             CameraPoint_X.transform.Rotate(new Vector3(Came_X, 0, 0));//カメラをポイントを中心に縦回転
             var Wrote = waist.localEulerAngles;//腰を取得
             waist.transform.localEulerAngles = new Vector3(Wrote.x, Wrote.y + Came_X, Wrote.z);//カメラに合わせて仰向けになる
@@ -287,7 +285,7 @@ public class CharactreContorol : MonoBehaviour
 
     public void Shot()
     {
-         if (Input.GetMouseButton(0)) 
+        if (Input.GetMouseButton(0))
         {
             GunScript.Charge();
         }
@@ -307,30 +305,30 @@ public class CharactreContorol : MonoBehaviour
 
 
 
-      
+
 
 
     }
 
-    
 
-       
+
+
 
 
 
     public void AirToIdle()//ジャンプ終了後処理
     {
         anim.SetTrigger("Idle");
-      
+
     }
-  
+
 
 
     public void PostJump_processing()//ジャンプ直後処理
     {
-        
+
         anim.SetBool("Jump", false);
-        
+
     }
 
 
@@ -350,5 +348,19 @@ public class CharactreContorol : MonoBehaviour
         return V_min + (V_max - V_min) / ((R_max - R_min) / (value - R_min));//valueをV_minからV_Maxの範囲からR_minからR_maxの範囲にする
 
     }
+
+
+    void OnTriggerEnter(Collider other)
+    {
+
+        if (other.gameObject.tag=="Bullet")
+        {
+
+            var BulletSC = other.gameObject.GetComponent<Bullet>();
+            HP -= BulletSC.Bullet_Attack[(int)BulletSC.bulletMode];
+        }
+    }
+
+
 
 }

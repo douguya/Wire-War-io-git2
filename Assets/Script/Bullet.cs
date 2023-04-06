@@ -15,7 +15,7 @@ public class Bullet : MonoBehaviour
     }
     public  BulletMode bulletMode=0;
 
-
+    public int[] Bullet_Attack;//’e‘¬
 
     public int[] Bullet_Speed;//’e‘¬
     public int[] Ballet_Range;//ŽË’ö‹——£
